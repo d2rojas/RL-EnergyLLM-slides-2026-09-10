@@ -40,7 +40,7 @@ def agg(tag):
 
 # ---------------------------------------------------------------- choice evolution
 def choice_evolution():
-    panels = [("base", "base (untrained)"), ("A2_step10", "A2 @ step 10"), ("A2_step60", "A2 @ step 60")]
+    panels = [("base", "before training"), ("A2_step10", "after 10 training steps"), ("A2_step60", "after 60 training steps (final)")]
     fig, axes = plt.subplots(2, 3, figsize=(20.8, 9.6), sharex=True)
     for col, (tag, title) in enumerate(panels):
         rows = turns(tag)
@@ -77,11 +77,8 @@ def choice_evolution():
             ax2.legend(fontsize=10)
         for a in (ax, ax2):
             a.grid(alpha=0.25)
-    fig.suptitle(
-        "Choice per turn (134 games each): base chooses erratically (scattered levels, broken format, long)\n"
-        "$\\rightarrow$ training converges to consistent but UNCONDITIONAL choice (always mid, short). "
-        "Missing: state-conditional choice --- runs D/F and the decision test target exactly that.",
-        fontsize=15)
+    fig.suptitle("Which effort level the agent picks, turn by turn (134 games per column)",
+                 fontsize=16)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(FIGS / "choice_evolution.png", dpi=100)
     print("wrote choice_evolution.png")
