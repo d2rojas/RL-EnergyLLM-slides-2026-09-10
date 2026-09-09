@@ -154,33 +154,36 @@ Left figure: the single-call profiler protocol (F1); table: the training-prompt 
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Trained: 9 runs, 4 reward families, one recipe change (lr 3e-6, no KL)}
+\begin{frame}{Experiment 1 --- one config, one control: does the energy penalty do anything?}
+\small
+\textbf{The question}: if the reward pays for saving energy, does the agent use its effort knob?
+\vspace{0.4em}
 \begin{center}\footnotesize
-\begin{tabular}{@{}llllll@{}}
+\begin{tabular}{@{}lll@{}}
 \toprule
-run & reward & $\lambda$ & recipe & steps & status \\
+ & \textbf{A2 (treatment)} & \textbf{B2 (control)} \\
 \midrule
-A  & multiplicative (success-gated) & 0.5 & lr 1e-6 + KL & 30 & done + evaluated \\
-B  & --- (control) & 0 & lr 1e-6 + KL & 30 & done + evaluated \\
-A$'$ & multiplicative & 1.5 & lr 1e-6 + KL & 30 & done + evaluated \\
-A2 & multiplicative & 0.5 & \textbf{lr 3e-6, no KL} & 60 & done + evaluated \\
-B2 & --- (control) & 0 & lr 3e-6, no KL & 60 & done + evaluated \\
-C / C2 & \textbf{additive} (all trajectories) & 1.0 & 1e-6 / 3e-6 & 30 / 60 & training now \\
-D  & \textbf{level-priced} (the decision costs) & --- & 3e-6 & 60 & training now \\
-F  & multiplicative + \textbf{budget in the observation} & 0.5 & 3e-6 & 60 & training now \\
+reward & $R=\mathbf{1}[\text{success}]\cdot 10\cdot\max(0,1-\lambda E/E_{\text{ref}})$ & same, with $\lambda=0$ (no energy term) \\
+$\lambda$ & 0.5 & 0 \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{0.3em}\small
-Reward forms: multiplicative $R=\mathbf{1}[\text{success}]\cdot 10\cdot\max(0,1-\lambda E/E_{\text{ref}})$;
-additive $R=\text{task}-\lambda E$; level-priced $R=\text{task}-c\cdot\{0,1,3\}_{\text{declared level}}$;
-run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to every observation.
+\vspace{0.4em}
+\textbf{Everything else identical}: Qwen2.5-1.5B + LoRA-64, GiGPO (8 rollouts/game,
+128 trajectories/step), lr 3e-6, no KL, \textbf{60 steps} on one free-pool GPU,
+checkpoint every 5 steps. Evaluation: every 10th checkpoint $\times$ \textbf{134
+out-of-distribution games}, byte-identical prompt, board-calibrated hardware joules.
+\vspace{0.4em}
+
+$\Rightarrow$ three results, next three slides: the Pareto plot, the choice dynamics, the raw traces.
+{\scriptsize (An earlier weak-recipe batch A/B/A$'$ at lr 1e-6 + KL and $\lambda\in\{0,0.5,1.5\}$
+reached the same verdict --- backup.)}
 \end{frame}
 
 % =============================================================================
-\section{What came out: the results}
+\section{Two experiments, two answers}
 % -----------------------------------------------------------------------------
-\begin{frame}{Finding 1: RL cuts energy 32\,\% at better success --- and $\lambda{=}0$ does it too}
+\begin{frame}{Exp.\ 1, result A: training cuts energy 32\,\% at better success --- but so does $\lambda{=}0$}
 \begin{columns}[T]
 \column{0.5\textwidth}
 \includegraphics[width=\linewidth]{figures/f3_pareto.png}
@@ -200,7 +203,7 @@ run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to eve
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Finding 2: the choice collapses --- 133/134 episodes vary levels $\rightarrow$ 0/134}
+\begin{frame}{Exp.\ 1, result B: the choice collapses --- 133/134 episodes vary levels $\rightarrow$ 0/134}
 \begin{center}\includegraphics[width=0.86\textwidth]{figures/choice_evolution.png}\end{center}
 \vspace{-0.6em}\scriptsize
 Episodes using more than one effort level: base \textbf{133/134} (scatter + 16\,\% broken format)
@@ -211,7 +214,7 @@ decomposition shows 100\,\% of the energy drop is \textbf{within-mid shortening}
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Traces: the rambling dies (483 $\rightarrow$ 314 chars/turn); the decision never appears}
+\begin{frame}{Exp.\ 1, the traces: the rambling dies ($-35\,\%$/turn); the decision never appears}
 \begin{columns}[T]
 \column{0.5\textwidth}
 {\small \textbf{Base (untrained)} --- ``put a clean spatula in a drawer'', turn 1:}\\[0.2em]
@@ -241,6 +244,31 @@ strategy) $\rightarrow$ A2 emits \textbf{mid 73/73 times}. Training deleted the 
 \emph{inside} the level --- it did not learn to \emph{choose} the level.
 \end{frame}
 
+% -----------------------------------------------------------------------------
+\begin{frame}{Experiment 2 --- force each level on the trained policy: do its choices matter?}
+\small
+\textbf{The question}: is the learned ``always mid'' actually a good choice?
+\textbf{Setup}: the same A2@60 checkpoint, 134 games per row; the only change is a forced
+\texttt{<effort>} prefix in the assistant turn. If free choice $\succ$ every forced level,
+the choices carry information.
+\vspace{0.4em}
+\begin{center}\footnotesize
+\begin{tabular}{@{}llll@{}}
+\toprule
+config & success & kJ/episode & \\
+\midrule
+A2@60, its own choice (= always mid) & 6.7\,\% & 10.4 & \\
+A2@60 \textbf{forced low} & \textbf{6.7\,\%} & \textbf{8.8} & \textcolor{bad}{same success, $-16\,\%$ energy} \\
+A2@60 forced mid / forced high & \multicolumn{2}{l}{running (tonight)} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.4em}
+\textbf{Answer so far: no.} A fixed ``low'' matches the trained policy's success at 16\,\% less
+energy --- the learned choice \textbf{leaves energy on the table}. This is the precise gap the
+next round of training (next slide) has to close.
+\end{frame}
+
 % =============================================================================
 \section{The challenges --- and what is running against each one}
 % -----------------------------------------------------------------------------
@@ -265,25 +293,23 @@ $-16\,\%$ energy --- always-mid \textbf{leaves energy on the table} (mid/high st
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Running now: 4 trainings + decision test + budget profiling, all monitored}
+\begin{frame}{Now training: three targeted fixes, one per diagnosed cause}
 \begin{center}\small
-\begin{tabular}{@{}llp{6.2cm}@{}}
+\begin{tabular}{@{}lp{5.6cm}p{5.2cm}@{}}
 \toprule
-job & what & decides \\
+run & the one change vs Experiment 1 & the failure it attacks \\
 \midrule
-eval-f3 & decision test + F5 & do its choices matter? does base react to a budget zero-shot? (B2 series \textcolor{good}{done}) \\
-C, C2 & additive reward (weak / strong recipe) & dense energy signal vs fail-faster trap \\
-D & level-priced reward & is the \emph{declared level} trainable at all? \\
-F & budget in the observation & does seeing energy enable deciding? \\
+C2 & \textbf{additive} reward $R=\text{task}-\lambda E$, every trajectory pays & energy gradient reached only $\sim$5\,\% of trajectories \\
+D & \textbf{level-priced}: low free, mid $-c$, high $-3c$ per turn & the declaration itself never cost anything \\
+F & \textbf{budget line in every observation} (``Energy used so far: X kJ / budget 1 kJ'') & the policy could never \emph{see} its energy \\
 \bottomrule
 \end{tabular}
 \end{center}
 \vspace{0.4em}\small
-F4 landed overnight: full history \textbf{3.0\,\% / 4.2 kJ} $\succ$ keep-3 (1.5\,\% / 5.1) $\succ$
-keep-1 (0.7\,\% / 5.0) --- truncating context hurts success \emph{and} saves nothing.
-Next in line: the \textbf{stop/turns knob} --- 95--99\,\% of episodes burn all 30 turns; successes
-finish in 15--22. ``Learning to give up'' is the largest measured energy reservoir and the easiest
-``when'' to learn. Then: a \textbf{time-varying energy price} in the observation (the grid signal).
+All three: same recipe/scale as Experiment 1, 60 steps, checkpoints on the PVC, monitored.
+In the eval queue: Experiment 2's forced mid/high + F5 (does the \emph{untrained} model react
+to a stated budget?). Next knob after these verdicts: \textbf{learning to stop} --- 95--99\,\%
+of episodes burn all 30 turns while successes finish in 15--22.
 \end{frame}
 
 % -----------------------------------------------------------------------------
@@ -346,6 +372,30 @@ finish in 15--22. ``Learning to give up'' is the largest measured energy reservo
 
 % =============================================================================
 \appendix
+
+\begin{frame}{Backup --- the full run matrix (9 runs, 4 reward families)}
+\begin{center}\footnotesize
+\begin{tabular}{@{}llllll@{}}
+\toprule
+run & reward & $\lambda$ & recipe & steps & status \\
+\midrule
+A  & multiplicative (success-gated) & 0.5 & lr 1e-6 + KL & 30 & done + evaluated \\
+B  & --- (control) & 0 & lr 1e-6 + KL & 30 & done + evaluated \\
+A$'$ & multiplicative & 1.5 & lr 1e-6 + KL & 30 & done + evaluated \\
+A2 & multiplicative & 0.5 & \textbf{lr 3e-6, no KL} & 60 & done + evaluated \\
+B2 & --- (control) & 0 & lr 3e-6, no KL & 60 & done + evaluated \\
+C / C2 & \textbf{additive} (all trajectories) & 1.0 & 1e-6 / 3e-6 & 30 / 60 & training now \\
+D  & \textbf{level-priced} (the decision costs) & --- & 3e-6 & 60 & training now \\
+F  & multiplicative + \textbf{budget in the observation} & 0.5 & 3e-6 & 60 & training now \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}\small
+Reward forms: multiplicative $R=\mathbf{1}[\text{success}]\cdot 10\cdot\max(0,1-\lambda E/E_{\text{ref}})$;
+additive $R=\text{task}-\lambda E$; level-priced $R=\text{task}-c\cdot\{0,1,3\}_{\text{declared level}}$;
+run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to every observation.
+\end{frame}
+
 
 \begin{frame}{Backup --- F2 training curves, batch 1 (λ invisible at lr 1e-6)}
 \includegraphics[width=\textwidth]{figures/f2_training_curves.png}
