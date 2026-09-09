@@ -1,0 +1,297 @@
+% !TEX program = pdflatex
+% =============================================================================
+% Sep 10 advisor meeting — first meeting since Aug 12 (Aug 26 did not happen).
+% Arc: Aug-12 asks resolved -> what we built & measured (F1, RL on Nautilus) ->
+% the two headline findings (training saves 32% energy; the effort knob is NOT
+% yet a decision) -> the experiment matrix running right now -> asks.
+% All numbers: 134 OOD ALFWorld games, per-board-calibrated energy, RTX 3090.
+% =============================================================================
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{metropolis}
+\usepackage{appendixnumberbeamer}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\definecolor{good}{HTML}{1baf7a}
+\definecolor{bad}{HTML}{e34948}
+\definecolor{mid}{HTML}{eb6834}
+\definecolor{acc}{HTML}{2a78d6}
+\newcommand{\rf}[1]{{\scriptsize\textcolor{black!55}{[#1]}}}
+
+\title{Effort as an action: what trained, what it learned, and what it refuses to learn}
+\subtitle{Everything since Aug 12 --- baselines, RL on Nautilus, and the decision problem}
+\author{Daniela Rojas}
+\date{September 10, 2026}
+
+\begin{document}
+\maketitle
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Where we left off (Aug 12) --- and where each ask stands}
+\begin{center}\footnotesize
+\begin{tabular}{@{}p{6.8cm}lp{5.6cm}@{}}
+\toprule
+\textbf{You asked (Aug 12)} & \textbf{Who} & \textbf{Now} \\
+\midrule
+Same GPU for every energy comparison & Yuanyuan & \textcolor{good}{\textbf{done}}, plus stronger: per-board J/token \emph{calibration} (four ``identical'' 3090s measured 4.0--6.4 J/token) \\
+Turns free, not fixed at 5 & Yuanyuan & \textcolor{good}{\textbf{done}} --- turns are an outcome everywhere \\
+Explain the long act segments & Yuanyuan & \textcolor{good}{\textbf{answered}}: a 2nd LLM call hitting its 200-token ceiling; env was never in it (backup) \\
+Peak power in the idle period & Wenqi & \textcolor{good}{\textbf{answered}}: NVML power is a trailing average; probe now samples the instantaneous field too (backup) \\
+RL with the action specified, success-only penalty & all & \textcolor{good}{\textbf{ran}}: 6 trained runs (30--60 steps), 27 evaluations of 134 games each \\
+Context window into the action space & Wenqi & authority measured now (F4 running); as action, staged behind the decision-test verdict \\
+PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{What we built since Aug 12 (all reproducible, all pushed)}
+\small
+\begin{enumerate}\itemsep 0.45em
+  \item \textbf{The full effort-as-action stack on NRP Nautilus}: the policy declares
+        \texttt{<effort>low|mid|high</effort>} each turn; NVML energy reaches the reward
+        (the June inert-penalty bug is closed \emph{with evidence}); LoRA-64 training fits a
+        free-pool 24-GB A10. It took 8 attempts --- each failure advanced one stage
+        (\texttt{python} shim, host-RAM, flash-attn, CUDA-OOM, LoRA) and is documented.
+  \item \textbf{A verifiable evaluation protocol}: 134 out-of-distribution games per point,
+        the exact training prompt (byte-identical templates), hardware energy counter,
+        \textbf{per-board J/token calibration}, eviction-proof resume. 27 evaluations done.
+  \item \textbf{Fixed-effort baselines (F1)} and the untrained reference points.
+  \item Two bug classes found in \emph{our own} earlier pipeline and fixed: energy attribution
+        was $\sim$uniform across trajectories; the energy meter could fail silently.
+\end{enumerate}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{F1 --- the knob has authority (untrained, forced levels)}
+\begin{columns}[T]
+\column{0.46\textwidth}
+\includegraphics[width=\linewidth]{figures/f1_success_vs_energy.png}
+\column{0.54\textwidth}\scriptsize
+\vspace{0.4em}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+base + forced effort & success & kJ/ep & tok/turn \\
+\midrule
+low  & 0.8\,\% & 10.7 & 87 \\
+mid  & 1.5\,\% & 12.0 & 98 \\
+high & 1.5\,\% & 13.0 & 107 \\
+free (no forcing) & 1.5\,\% & \textbf{15.0} & 123 \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.7em}
+Energy orders \textbf{low $<$ mid $<$ high} on full episodes; the free base is the most
+expensive of all (long, 16\,\% format-broken turns). Success is indistinguishable at this
+model scale --- important later.
+
+\vspace{0.5em}
+{\tiny 134 games each, $\leq$30 turns, model decides length, RTX 3090, hardware counter.
+Left figure: the single-call profiler protocol (F1); table: the training-prompt protocol.}
+\end{columns}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Training runs: the matrix so far}
+\begin{center}\footnotesize
+\begin{tabular}{@{}llllll@{}}
+\toprule
+run & reward & $\lambda$ & recipe & steps & status \\
+\midrule
+A  & multiplicative (success-gated) & 0.5 & lr 1e-6 + KL & 30 & done + evaluated \\
+B  & --- (control) & 0 & lr 1e-6 + KL & 30 & done + evaluated \\
+A$'$ & multiplicative & 1.5 & lr 1e-6 + KL & 30 & done + evaluated \\
+A2 & multiplicative & 0.5 & \textbf{lr 3e-6, no KL} & 60 & done + evaluated \\
+B2 & --- (control) & 0 & lr 3e-6, no KL & 60 & done, eval in progress \\
+C / C2 & \textbf{additive} (all trajectories) & 1.0 & 1e-6 / 3e-6 & 30 / 60 & training now \\
+D  & \textbf{level-priced} (the decision costs) & --- & 3e-6 & 60 & training now \\
+F  & multiplicative + \textbf{budget in the observation} & 0.5 & 3e-6 & 60 & training now \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}\small
+Reward forms: multiplicative $R=\mathbf{1}[\text{success}]\cdot 10\cdot\max(0,1-\lambda E/E_{\text{ref}})$;
+additive $R=\text{task}-\lambda E$; level-priced $R=\text{task}-c\cdot\{0,1,3\}_{\text{declared level}}$;
+run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to every observation.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Finding 1 --- training cuts energy 32\,\% without losing success}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\includegraphics[width=\linewidth]{figures/f3_pareto.png}
+\column{0.5\textwidth}\small
+\begin{itemize}\itemsep 0.4em
+  \item Every trained checkpoint: 15.0 $\rightarrow$ \textbf{10.2--10.5 kJ/episode}
+        (123 $\rightarrow$ 83--87 tokens/turn), success preserved.
+  \item With the stronger recipe (A2, 60 steps) success also \textbf{rises}:
+        1.5\,\% $\rightarrow$ \textbf{6.7\,\%} while energy falls 12.1 $\rightarrow$ 10.4 kJ ---
+        the trained point \emph{dominates} base on both axes.
+  \item But: identical at $\lambda = 0$, $0.5$, $1.5$. \textbf{The energy term did not cause it}
+        --- GiGPO itself does (format compliance, invalid-action penalty, shorter reasoning).
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Finding 2 --- the agent does not (yet) DECIDE: the choice collapses}
+\begin{center}\includegraphics[width=0.86\textwidth]{figures/choice_evolution.png}\end{center}
+\vspace{-0.6em}\scriptsize
+Episodes using more than one effort level: base \textbf{133/134} (scatter + 16\,\% broken format)
+$\rightarrow$ A2@10 \textbf{43/134} $\rightarrow$ A2@60 \textbf{0/134}. Training \emph{removes}
+variation: it learns format and brevity, converging to ``always mid, short'' --- the trace
+decomposition shows 100\,\% of the energy drop is \textbf{within-mid shortening}
+(125$\rightarrow$83 tok), 0\,\% is level switching, 0\,\% is shorter episodes.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Why it collapses --- diagnosis with evidence, and the fix per cause}
+\begin{center}\footnotesize
+\begin{tabular}{@{}p{5.9cm}p{5.6cm}l@{}}
+\toprule
+\textbf{cause} & \textbf{fix} & \textbf{status} \\
+\midrule
+Success-gated reward touches only $\sim$5\,\% of trajectories $\Rightarrow$ almost no energy gradient & additive reward: charge \emph{every} trajectory (ARES's fail-faster risk is the point of the ablation) & runs C/C2 training \\
+Choosing a level has no price of its own & \textbf{level-priced} reward: low free, mid $-c$, high $-3c$ per turn & run D training \\
+Energy is invisible to the policy (reward-only, never observed) & \textbf{budget in the observation} (June's budget-conditioning, reborn) & run F training \\
+GiGPO groups contain no level counterfactuals (all 8 rollouts pick mid) & forced-level exploration within groups (2 low / 4 free / 2 high) & designed, next \\
+At 2--7\,\% success the levels barely change outcomes --- there is little ``when'' to learn & more data / steps / 7B on B200 & lever known \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}\small
+Plus the direct \textbf{decision test} (queued): evaluate A2@60 with its effort \emph{forced} to
+low/mid/high vs its own free choice --- if free $\succ$ forced, the choices carry information.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Running right now (all unattended, monitored, resumable)}
+\begin{center}\small
+\begin{tabular}{@{}llp{6.2cm}@{}}
+\toprule
+job & what & decides \\
+\midrule
+eval-f3 & B2 series + decision test + budget profiling & does $\lambda$ separate once the policy learns? do its choices matter? does base react to a budget zero-shot? \\
+C, C2 & additive reward (weak / strong recipe) & dense energy signal vs fail-faster trap \\
+D & level-priced reward & is the \emph{declared level} trainable at all? \\
+F & budget in the observation & does seeing energy enable deciding? \\
+F4 & context-knob authority (full/3/1 history) & the second knob's F1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.4em}\small
+Next in line: the \textbf{stop/turns knob} --- 95--99\,\% of episodes burn all 30 turns; successes
+finish in 15--22. ``Learning to give up'' is the largest measured energy reservoir and the easiest
+``when'' to learn. Then: a \textbf{time-varying energy price} in the observation (the grid signal).
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Measurement lessons that go straight into the paper}
+\small
+\begin{enumerate}\itemsep 0.5em
+  \item \textbf{``Same GPU model'' is not enough}: four RTX 3090s (same 350-W limit) measured
+        4.0--6.4 J/token for identical policies. Every evaluation now runs a 1-minute per-board
+        calibration; energy is reported at a 4.0 J/token reference. Raw cross-board kJ
+        comparisons are invalid --- ours and anyone's.
+  \item \textbf{Tokens/episode is the hardware-free energy currency} of the policy; joules are
+        tokens $\times$ a board property.
+  \item \textbf{Attribution $\neq$ measurement}: batched training energy is split by generated
+        tokens (we fixed a bug where it was $\sim$uniform); offline eval measures single episodes.
+  \item NVML's power reading is a $\sim$1-s trailing average --- peak-power claims need
+        \texttt{NVML\_FI\_DEV\_POWER\_INSTANT} (in the probe now).
+\end{enumerate}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{What we can claim today / what we are one result away from}
+\small
+\textbf{Claimable now, with 134-game evidence:}
+\begin{itemize}\itemsep 0.2em
+  \item The effort knob has real authority (F1: low $<$ mid $<$ high in energy).
+  \item RL training yields \textbf{$-32\,\%$ energy at equal-or-better success} (A2@60 dominates base).
+  \item A precise negative result with mechanism: success-gated multiplicative rewards at
+        $\lambda \in \{0, 0.5, 1.5\}$ do \emph{not} make the policy exercise the knob.
+\end{itemize}
+\vspace{0.4em}
+\textbf{One result away (this week):}
+\begin{itemize}\itemsep 0.2em
+  \item A2 vs B2 full series $\Rightarrow$ does $\lambda$ separate once the policy learns?
+  \item Decision test $\Rightarrow$ do the trained policy's choices beat any fixed level?
+  \item D / F $\Rightarrow$ does pricing the decision, or showing the budget, create real
+        effort selection --- the claim we actually want.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Asks and decisions}
+\begin{enumerate}\itemsep 0.7em
+  \item \textbf{PES GM 2027 (deadline Nov 10)}: with today's material the paper is
+        ``knob authority + verified measurement methodology + RL saves 32\,\% + diagnosed
+        limits of reward shaping''. Is that the paper, or do we hold for the decision result?
+        Site opens Oct 6 --- decision by early October.
+  \item \textbf{Compute}: everything above ran on free-pool scraps (A10/3090, 8 failed attempts
+        to fit 24 GB, evictions, two PVC-full incidents). One reliable 48-GB+ GPU --- B200 slot
+        or a quota grant --- multiplies iteration speed; the 7B experiments need it.
+  \item \textbf{Design opinion}: of the three interventions now training (charge everything /
+        price the level / show the budget), which failure or success would change your view of
+        the approach?
+  \item Meeting cadence: results now arrive every 24--48 h; propose a short weekly check-in.
+\end{enumerate}
+\end{frame}
+
+% =============================================================================
+\appendix
+
+\begin{frame}{Backup --- F2 training curves, batch 1 (λ invisible at lr 1e-6)}
+\includegraphics[width=\textwidth]{figures/f2_training_curves.png}
+\end{frame}
+
+\begin{frame}{Backup --- F2 batch 2 (lr 3e-6, no KL): success finally trends up}
+\includegraphics[width=\textwidth]{figures/f2_batch2_curves.png}
+\vspace{-0.2em}\scriptsize
+Validation (32 games, noisy): A2 6 $\rightarrow$ 25\,\%, B2 9 $\rightarrow$ 37\,\% by step 60;
+tokens/turn 111 $\rightarrow$ 77--81. The 134-game evaluation of both series is the running arbiter.
+\end{frame}
+
+\begin{frame}{Backup --- answers owed from Aug 12}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\includegraphics[width=\linewidth]{figures/peak_lag_low_mid.png}
+\column{0.45\textwidth}\scriptsize
+\textbf{A3, long act segments}: the Aug-12 profiler made a second LLM call per turn
+(\texttt{...Action:}, ceiling 200); ``think thoroughly'' kept writing past \texttt{Action:} until
+cut off. \texttt{env.step()} was outside every span. Fixed: single call, action parsed.
+
+\vspace{0.5em}
+\textbf{A4, peak in idle}: \texttt{nvmlDeviceGetPowerUsage} is a trailing average ($\sim$1 s);
+utilization reads 0 while the reported power still peaks, and the decay tail (0.9--1.4 s) lands in
+the unshaded gap. Joules (hardware counter) unaffected; probe now records the instantaneous field.
+\end{columns}
+\end{frame}
+
+\begin{frame}{Backup --- ops on shared free-pool infrastructure (why this took 8 attempts)}
+\scriptsize
+\begin{tabular}{@{}llp{7.4cm}@{}}
+\toprule
+\# & failed at & lesson (all encoded in the Jobs now) \\
+\midrule
+1 & install & vLLM image has no \texttt{python} binary $\rightarrow$ shim \\
+2--3 & env init & 256 ALFWorld processes OOM at 28/96 Gi host RAM $\rightarrow$ 160 Gi, 32 val envs \\
+4 & model init & \texttt{flash\_attn} not in the image $\rightarrow$ prebuilt wheel \\
+4--6 & actor update & full-FT Adam on 1.5B $>$ 24 GB $\rightarrow$ free vLLM cache, micro-batch, finally \textbf{LoRA-64} \\
+7--8 & --- & training runs; evictions resume from checkpoints; logs mirrored to the PVC \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+
+Plus: 6-h bare-pod reap (run everything as Jobs), two PVC-full incidents (now 300 Gi + trim rule),
+pod evictions during eval (resumable per game). Nautilus provided $\sim$470 free-pool GPUs on paper
+and zero for six hours when we started.
+\end{frame}
+
+\end{document}
