@@ -33,6 +33,82 @@
 \begin{document}
 \maketitle
 
+% =============================================================================
+% MAIN DECK: 4 slides. Everything else lives in the appendix.
+% =============================================================================
+% -----------------------------------------------------------------------------
+\begin{frame}{What we tried: let the agent choose how hard to think}
+\small
+Every turn, the agent writes one text with its choice, its reasoning, and its move:
+\begin{center}
+{\ttfamily\normalsize
+\textcolor{mid}{\ab{effort}low $|$ mid $|$ high\ab{/effort}}\;
+\textcolor{acc}{\ab{think}} \ldots \textcolor{acc}{\ab{/think}}\;
+\textcolor{good}{\ab{action}} go to countertop 1 \textcolor{good}{\ab{/action}}}
+\end{center}
+\vspace{0.3em}
+\begin{itemize}\itemsep 0.5em
+  \item The game (ALFWorld) sees \textbf{only the action}. The effort tag is the agent's own
+        declaration of how much reasoning to spend; a hardware counter measures the \textbf{joules}
+        of every generated token.
+  \item \textbf{The reward}: \; $R \;=\; 10\cdot\mathbf{1}[\text{success}]\cdot
+        \max\!\big(0,\; 1-0.5\,E/E_{\text{ref}}\big)$ \; --- win, and win \emph{cheaply}.
+  \item \textbf{What we expected}: easy situation $\rightarrow$ \textcolor{good}{low},
+        hard situation $\rightarrow$ \textcolor{bad}{high} --- same success, less energy,
+        and an agent that \emph{decides}.
+\end{itemize}
+\vspace{0.3em}
+{\footnotesize Qwen2.5-1.5B, GiGPO RL, 60 steps on one GPU; evaluated on 134 held-out games
+with board-calibrated hardware energy.}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{What we got: success up, energy down --- steadily, over one run}
+\begin{center}\includegraphics[width=0.98\textwidth]{figures/a2_run.png}\end{center}
+\vspace{-0.4em}\small
+Success $1.5\,\% \rightarrow 6.7\,\%$ while energy falls $15.0 \rightarrow 10.4$ kJ/episode
+($-31\,\%$): the trained agent beats the untrained one \textbf{on both axes at once}.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{But the \emph{choice} collapsed: it always says ``mid''}
+\begin{center}\includegraphics[width=0.82\textwidth]{figures/choice_evolution.png}\end{center}
+\vspace{-0.5em}\small
+Before training it picks levels erratically (and breaks the format in 16\,\% of turns);
+after training it says \textbf{mid 100\,\% of the time} and just writes less. The energy saving
+is real --- but it comes from brevity and format, \textbf{not from the decision we wanted}.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Where the energy went --- and what's next}
+\begin{center}\normalsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+ & success & kJ/episode \\
+\midrule
+before training (base model) & 1.5\,\% & 15.0 \\
+normal RL training (no energy term) & 3.7\,\% & 10.3 \\
+\textbf{our modification (energy in the reward)} & \textbf{6.7\,\%} & \textbf{10.4} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}\small
+\begin{itemize}\itemsep 0.4em
+  \item Most of the saving comes from \textbf{training itself} (brevity + valid actions);
+        the energy term didn't add savings --- because the agent stopped choosing.
+  \item And the collapsed choice \textbf{leaves energy on the table}: forcing ``low'' on the
+        trained agent keeps its 6.7\,\% success at \textbf{8.8 kJ} ($-16\,\%$).
+  \item \textbf{Next (already training)}: make the choice itself matter --- put a price on the
+        declared level, and show the agent its own consumption against a budget.
+\end{itemize}
+\vspace{0.2em}
+{\footnotesize 134 held-out games per row, same GPU protocol; checkpoint 60 for both trained rows
+(each run's best checkpoint tells the same story). Details, controls, and traces: appendix.}
+\end{frame}
+
+\appendix
+
+
 % -----------------------------------------------------------------------------
 \begin{frame}{Aug 12 asks: five closed with evidence; PES GM is today's decision}
 \begin{center}\footnotesize
@@ -52,8 +128,6 @@ PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed 
 \end{center}
 \end{frame}
 
-% =============================================================================
-\section{What we trained, and how}
 % -----------------------------------------------------------------------------
 \begin{frame}{Built: effort-as-action RL on Nautilus + a calibrated 134-game eval protocol}
 \small
@@ -180,8 +254,6 @@ $\Rightarrow$ three results, next three slides: the Pareto plot, the choice dyna
 reached the same verdict --- backup.)}
 \end{frame}
 
-% =============================================================================
-\section{Two experiments, two answers}
 % -----------------------------------------------------------------------------
 \begin{frame}{Exp.\ 1, result A: training cuts energy 32\,\% at better success --- but so does $\lambda{=}0$}
 \begin{columns}[T]
@@ -269,8 +341,6 @@ energy --- the learned choice \textbf{leaves energy on the table}. This is the p
 next round of training (next slide) has to close.
 \end{frame}
 
-% =============================================================================
-\section{The challenges --- and what is running against each one}
 % -----------------------------------------------------------------------------
 \begin{frame}{Five causes of the collapse --- each one has an experiment running against it}
 \begin{center}\footnotesize
@@ -371,7 +441,7 @@ of episodes burn all 30 turns while successes finish in 15--22.
 \end{frame}
 
 % =============================================================================
-\appendix
+
 
 \begin{frame}{Backup --- the full run matrix (9 runs, 4 reward families)}
 \begin{center}\footnotesize
