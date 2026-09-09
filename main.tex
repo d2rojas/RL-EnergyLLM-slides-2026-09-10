@@ -21,6 +21,7 @@
 \definecolor{mid}{HTML}{eb6834}
 \definecolor{acc}{HTML}{2a78d6}
 \newcommand{\rf}[1]{{\scriptsize\textcolor{black!55}{[#1]}}}
+\newcommand{\ab}[1]{\textless#1\textgreater}  % <tag> in the trace slide
 
 \title{Effort as an action: what trained, what it learned, and what it refuses to learn}
 \subtitle{Everything since Aug 12 --- baselines, RL on Nautilus, and the decision problem}
@@ -42,7 +43,7 @@ Turns free, not fixed at 5 & Yuanyuan & \textcolor{good}{\textbf{done}} --- turn
 Explain the long act segments & Yuanyuan & \textcolor{good}{\textbf{answered}}: a 2nd LLM call hitting its 200-token ceiling; env was never in it (backup) \\
 Peak power in the idle period & Wenqi & \textcolor{good}{\textbf{answered}}: NVML power is a trailing average; probe now samples the instantaneous field too (backup) \\
 RL with the action specified, success-only penalty & all & \textcolor{good}{\textbf{ran}}: 6 trained runs (30--60 steps), 27 evaluations of 134 games each \\
-Context window into the action space & Wenqi & authority measured now (F4 running); as action, staged behind the decision-test verdict \\
+Context window into the action space & Wenqi & authority \textcolor{good}{\textbf{measured}} (F4, overnight): cutting history \emph{hurts} success and saves no energy --- context stays an observation at 1.5B \\
 PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed \\
 \bottomrule
 \end{tabular}
@@ -107,7 +108,7 @@ A  & multiplicative (success-gated) & 0.5 & lr 1e-6 + KL & 30 & done + evaluated
 B  & --- (control) & 0 & lr 1e-6 + KL & 30 & done + evaluated \\
 A$'$ & multiplicative & 1.5 & lr 1e-6 + KL & 30 & done + evaluated \\
 A2 & multiplicative & 0.5 & \textbf{lr 3e-6, no KL} & 60 & done + evaluated \\
-B2 & --- (control) & 0 & lr 3e-6, no KL & 60 & done, eval in progress \\
+B2 & --- (control) & 0 & lr 3e-6, no KL & 60 & done + evaluated \\
 C / C2 & \textbf{additive} (all trajectories) & 1.0 & 1e-6 / 3e-6 & 30 / 60 & training now \\
 D  & \textbf{level-priced} (the decision costs) & --- & 3e-6 & 60 & training now \\
 F  & multiplicative + \textbf{budget in the observation} & 0.5 & 3e-6 & 60 & training now \\
@@ -132,8 +133,10 @@ run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to eve
   \item With the stronger recipe (A2, 60 steps) success also \textbf{rises}:
         1.5\,\% $\rightarrow$ \textbf{6.7\,\%} while energy falls 12.1 $\rightarrow$ 10.4 kJ ---
         the trained point \emph{dominates} base on both axes.
-  \item But: identical at $\lambda = 0$, $0.5$, $1.5$. \textbf{The energy term did not cause it}
-        --- GiGPO itself does (format compliance, invalid-action penalty, shorter reasoning).
+  \item But: identical at $\lambda = 0$, $0.5$, $1.5$ --- and the full $\lambda{=}0$ series (B2,
+        overnight) \textbf{seals it}: B2 peaks at \textbf{7.5\,\% / 9.7 kJ} (step 30), equal-or-better
+        than $\lambda{=}0.5$'s best point (6.7\,\% / 10.4 kJ, step 60).
+        \textbf{The energy term did not cause it} --- GiGPO itself does.
 \end{itemize}
 \end{columns}
 \end{frame}
@@ -150,9 +153,40 @@ decomposition shows 100\,\% of the energy drop is \textbf{within-mid shortening}
 \end{frame}
 
 % -----------------------------------------------------------------------------
+\begin{frame}{The traces themselves --- same task, before vs.\ after (verbatim)}
+\begin{columns}[T]
+\column{0.5\textwidth}
+{\small \textbf{Base (untrained)} --- ``put a clean spatula in a drawer'', turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+In the current situation, I have a spatula but no clean spatula. To find a clean
+spatula, I would first check if there is a dirty spatula on any of the countertops,
+sinks, stoves, etc., then wash it with water from the sinkbasin before placing it
+back into the drawer. However, since I don't know which object currently has the
+spatula, I will simply go to the sinkbasin [\ldots]\\
+\textcolor{acc}{\ab{think}} I am looking for a clean spatula [\ldots]}
+\column{0.5\textwidth}
+{\small \textbf{A2@60 (trained)} --- same task, turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+\textcolor{acc}{\ab{think}} The spatula must be somewhere in the kitchen [\ldots]
+The most likely places would be on the countertops, in the drawers, or in the
+cabinets. \textcolor{acc}{\ab{/think}}\\
+\textcolor{good}{\ab{action}go to countertop 1\ab{/action}}}\\[0.6em]
+{\small The rambling preamble is gone; think is tight; straight to a valid action.}
+\end{columns}
+\vspace{0.5em}\scriptsize
+Across the 3 sampled games (same board, 4.3 J/tok): median \textbf{483 $\rightarrow$ 314
+chars/turn} ($-35\,\%$), \textbf{14.9 $\rightarrow$ 8.3 kJ/episode}; both solve the same game,
+A2 in 13 turns. But the \emph{tag}: base scatters 66 mid / 20 low / 3 high (confusion, not
+strategy) $\rightarrow$ A2 emits \textbf{mid 73/73 times}. Training deleted the waste
+\emph{inside} the level --- it did not learn to \emph{choose} the level.
+\end{frame}
+
+% -----------------------------------------------------------------------------
 \begin{frame}{Why it collapses --- diagnosis with evidence, and the fix per cause}
 \begin{center}\footnotesize
-\begin{tabular}{@{}p{5.9cm}p{5.6cm}l@{}}
+\begin{tabular}{@{}p{5.6cm}p{5.3cm}l@{}}
 \toprule
 \textbf{cause} & \textbf{fix} & \textbf{status} \\
 \midrule
@@ -164,9 +198,10 @@ At 2--7\,\% success the levels barely change outcomes --- there is little ``when
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{0.3em}\small
-Plus the direct \textbf{decision test} (queued): evaluate A2@60 with its effort \emph{forced} to
-low/mid/high vs its own free choice --- if free $\succ$ forced, the choices carry information.
+\vspace{0.2em}\footnotesize
+Plus the \textbf{decision test} --- first result overnight: A2@60 \emph{forced to low} scores
+\textbf{6.7\,\% at 8.8 kJ} vs its free choice \textbf{6.7\,\% at 10.4 kJ}: same success,
+$-16\,\%$ energy --- always-mid \textbf{leaves energy on the table} (mid/high still running).
 \end{frame}
 
 % -----------------------------------------------------------------------------
@@ -176,15 +211,16 @@ low/mid/high vs its own free choice --- if free $\succ$ forced, the choices carr
 \toprule
 job & what & decides \\
 \midrule
-eval-f3 & B2 series + decision test + budget profiling & does $\lambda$ separate once the policy learns? do its choices matter? does base react to a budget zero-shot? \\
+eval-f3 & decision test + F5 & do its choices matter? does base react to a budget zero-shot? (B2 series \textcolor{good}{done}) \\
 C, C2 & additive reward (weak / strong recipe) & dense energy signal vs fail-faster trap \\
 D & level-priced reward & is the \emph{declared level} trainable at all? \\
 F & budget in the observation & does seeing energy enable deciding? \\
-F4 & context-knob authority (full/3/1 history) & the second knob's F1 \\
 \bottomrule
 \end{tabular}
 \end{center}
 \vspace{0.4em}\small
+F4 landed overnight: full history \textbf{3.0\,\% / 4.2 kJ} $\succ$ keep-3 (1.5\,\% / 5.1) $\succ$
+keep-1 (0.7\,\% / 5.0) --- truncating context hurts success \emph{and} saves nothing.
 Next in line: the \textbf{stop/turns knob} --- 95--99\,\% of episodes burn all 30 turns; successes
 finish in 15--22. ``Learning to give up'' is the largest measured energy reservoir and the easiest
 ``when'' to learn. Then: a \textbf{time-varying energy price} in the observation (the grid signal).
@@ -209,19 +245,23 @@ finish in 15--22. ``Learning to give up'' is the largest measured energy reservo
 
 % -----------------------------------------------------------------------------
 \begin{frame}{What we can claim today / what we are one result away from}
-\small
+\footnotesize
 \textbf{Claimable now, with 134-game evidence:}
-\begin{itemize}\itemsep 0.2em
+\begin{itemize}\itemsep 0.15em
   \item The effort knob has real authority (F1: low $<$ mid $<$ high in energy).
   \item RL training yields \textbf{$-32\,\%$ energy at equal-or-better success} (A2@60 dominates base).
-  \item A precise negative result with mechanism: success-gated multiplicative rewards at
-        $\lambda \in \{0, 0.5, 1.5\}$ do \emph{not} make the policy exercise the knob.
+  \item Success-gated multiplicative rewards, $\lambda \in \{0, 0.5, 1.5\}$, do \emph{not} make
+        the policy exercise the knob --- and the full B2 series (overnight) confirms
+        $\lambda$ \textbf{never separates} from the $\lambda{=}0$ control.
+  \item Context is not a useful knob at 1.5B (F4): truncating history costs success, saves no energy.
+  \item First decision-test point: forced-low ties free choice on success at $-16\,\%$ energy
+        --- the trained ``always mid'' \textbf{demonstrably leaves energy on the table}.
 \end{itemize}
-\vspace{0.4em}
+\vspace{0.3em}
 \textbf{One result away (this week):}
-\begin{itemize}\itemsep 0.2em
-  \item A2 vs B2 full series $\Rightarrow$ does $\lambda$ separate once the policy learns?
-  \item Decision test $\Rightarrow$ do the trained policy's choices beat any fixed level?
+\begin{itemize}\itemsep 0.15em
+  \item Decision test, forced mid/high $\Rightarrow$ completes the ``do choices matter'' verdict.
+  \item F5 $\Rightarrow$ does the untrained model react to a stated budget zero-shot?
   \item D / F $\Rightarrow$ does pricing the decision, or showing the budget, create real
         effort selection --- the claim we actually want.
 \end{itemize}
