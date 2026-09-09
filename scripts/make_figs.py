@@ -73,7 +73,7 @@ def choice_evolution():
                      fontsize=12, color="#e34948")
         ax2.set_xlabel("turn within the episode", fontsize=13)
         if col == 0:
-            ax2.set_ylabel("tokens / % invalid", fontsize=13)
+            ax2.set_ylabel("tokens per turn (black)\n% invalid actions (red)", fontsize=12)
             ax2.legend(fontsize=10)
         for a in (ax, ax2):
             a.grid(alpha=0.25)
