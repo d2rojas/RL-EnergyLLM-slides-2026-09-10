@@ -25,10 +25,10 @@
 \newcommand{\rf}[1]{{\scriptsize\textcolor{black!55}{[#1]}}}
 \newcommand{\ab}[1]{\textless#1\textgreater}  % <tag> in the trace slide
 
-\title{Effort as an action: what trained, what it learned, and what it refuses to learn}
-\subtitle{Everything since Aug 12 --- baselines, RL on Nautilus, and the decision problem}
+\title{Effort as an action}
+%\subtitle{Everything since Aug 12 --- baselines, RL on Nautilus, and the decision problem}
 \author{Daniela Rojas}
-\date{September 10, 2026}
+\date{September 09, 2026}
 
 \begin{document}
 \maketitle
@@ -68,10 +68,7 @@ with board-calibrated hardware energy.}
 \vspace{-0.4em}\small
 Success $1.5\,\% \rightarrow 6.7\,\%$ while energy falls $15.0 \rightarrow 10.4$ kJ/episode
 ($-31\,\%$): the trained agent beats the untrained one \textbf{on both axes at once}.\\[2pt]
-{\footnotesize Why not the $\sim$90\,\% of the GiGPO paper? That takes $\sim$40$\times$ this
-compute (full fine-tuning, 8$\times$A100, 150+ steps); we run LoRA, 60 steps, one free-pool GPU,
-and a stricter 30-turn out-of-distribution eval. In-training validation reads 25--37\,\% at step
-60 and is still rising --- all comparisons here are internal, same protocol for every row.}
+%{\footnotesize Why not the $\sim$90\,\% of the GiGPO paper? That takes $\sim$40$\times$ this compute (full fine-tuning, 8$\times$A100, 150+ steps); we run LoRA, 60 steps, one free-pool GPU, and a stricter 30-turn out-of-distribution eval. In-training validation reads 25--37\,\% at step 60 and is still rising --- all comparisons here are internal, same protocol for every row.}
 \end{frame}
 
 % -----------------------------------------------------------------------------
@@ -81,6 +78,58 @@ and a stricter 30-turn out-of-distribution eval. In-training validation reads 25
 Before training it picks levels erratically (and breaks the format in 16\,\% of turns);
 after training it says \textbf{mid 100\,\% of the time} and just writes less. The energy saving
 is real --- but it comes from brevity and format, \textbf{not from the decision we wanted}.
+\end{frame}
+
+
+% -----------------------------------------------------------------------------
+\begin{frame}{The traces: what training actually changed}
+\begin{columns}[T]
+\column{0.5\textwidth}
+{\small \textbf{Before} --- same task, turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+In the current situation, I have a spatula but no clean spatula. To find a clean
+spatula, I would first check if there is a dirty spatula on any of the countertops,
+sinks, stoves, etc., then wash it with water from the sinkbasin before placing it
+back into the drawer. However, since I don't know [\ldots]\\
+\textcolor{acc}{\ab{think}} I am looking for a clean spatula [\ldots]}
+\column{0.5\textwidth}
+{\small \textbf{After 60 steps} --- same task, turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+\textcolor{acc}{\ab{think}} The spatula must be somewhere in the kitchen [\ldots]
+The most likely places would be the countertops, the drawers, or the cabinets.
+\textcolor{acc}{\ab{/think}}\\
+\textcolor{good}{\ab{action}go to countertop 1\ab{/action}}}
+\end{columns}
+\vspace{0.6em}\small
+The rambling preamble is gone; the think is tight; the action is valid. Median
+\textbf{483 $\rightarrow$ 314 chars/turn} ($-35\,\%$) --- but the effort tag reads
+\textbf{mid, every single turn}: the waste died \emph{inside} the level, the choice never appeared.
+\end{frame}
+
+
+% -----------------------------------------------------------------------------
+\begin{frame}{The second knob: shrinking the context does not pay}
+\small
+can the \textbf{context window} be an energy knob too? We measured it
+(untrained model, 134 games per row, same protocol):
+\vspace{0.4em}
+\begin{center}\normalsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+history kept & success & kJ/episode \\
+\midrule
+full history & \textbf{3.0\,\%} & \textbf{4.2} \\
+last 3 turns & 1.5\,\% & 5.1 \\
+last 1 turn & 0.7\,\% & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.4em}
+\textbf{Verdict}: cutting memory hurts success \emph{and} saves no energy --- the agent forgets,
+wanders, and generates \emph{more} per turn (26 $\rightarrow$ 35 tokens). At this scale, context
+stays an observation, not an action.
 \end{frame}
 
 % -----------------------------------------------------------------------------
@@ -108,57 +157,6 @@ normal RL training (no energy term) & 3.7\,\% & 10.3 \\
 \vspace{0.2em}
 {\footnotesize 134 held-out games per row, same GPU protocol; checkpoint 60 for both trained rows
 (each run's best checkpoint tells the same story). Details, controls, and traces: appendix.}
-\end{frame}
-
-
-% -----------------------------------------------------------------------------
-\begin{frame}{The second knob: shrinking the context does not pay}
-\small
-Wenqi's Aug-12 ask: can the \textbf{context window} be an energy knob too? We measured it
-(untrained model, 134 games per row, same protocol):
-\vspace{0.4em}
-\begin{center}\normalsize
-\begin{tabular}{@{}lrr@{}}
-\toprule
-history kept & success & kJ/episode \\
-\midrule
-full history & \textbf{3.0\,\%} & \textbf{4.2} \\
-last 3 turns & 1.5\,\% & 5.1 \\
-last 1 turn & 0.7\,\% & 5.0 \\
-\bottomrule
-\end{tabular}
-\end{center}
-\vspace{0.4em}
-\textbf{Verdict}: cutting memory hurts success \emph{and} saves no energy --- the agent forgets,
-wanders, and generates \emph{more} per turn (26 $\rightarrow$ 35 tokens). At this scale, context
-stays an observation, not an action.
-\end{frame}
-
-% -----------------------------------------------------------------------------
-\begin{frame}{The traces: what training actually changed}
-\begin{columns}[T]
-\column{0.5\textwidth}
-{\small \textbf{Before} --- same task, turn 1:}\\[0.2em]
-{\scriptsize\ttfamily
-\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
-In the current situation, I have a spatula but no clean spatula. To find a clean
-spatula, I would first check if there is a dirty spatula on any of the countertops,
-sinks, stoves, etc., then wash it with water from the sinkbasin before placing it
-back into the drawer. However, since I don't know [\ldots]\\
-\textcolor{acc}{\ab{think}} I am looking for a clean spatula [\ldots]}
-\column{0.5\textwidth}
-{\small \textbf{After 60 steps} --- same task, turn 1:}\\[0.2em]
-{\scriptsize\ttfamily
-\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
-\textcolor{acc}{\ab{think}} The spatula must be somewhere in the kitchen [\ldots]
-The most likely places would be the countertops, the drawers, or the cabinets.
-\textcolor{acc}{\ab{/think}}\\
-\textcolor{good}{\ab{action}go to countertop 1\ab{/action}}}
-\end{columns}
-\vspace{0.6em}\small
-The rambling preamble is gone; the think is tight; the action is valid. Median
-\textbf{483 $\rightarrow$ 314 chars/turn} ($-35\,\%$) --- but the effort tag reads
-\textbf{mid, every single turn}: the waste died \emph{inside} the level, the choice never appeared.
 \end{frame}
 
 
