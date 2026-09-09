@@ -32,7 +32,7 @@
 \maketitle
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Where we left off (Aug 12) --- and where each ask stands}
+\begin{frame}{Aug 12 asks: five closed with evidence; PES GM is today's decision}
 \begin{center}\footnotesize
 \begin{tabular}{@{}p{6.8cm}lp{5.6cm}@{}}
 \toprule
@@ -53,7 +53,7 @@ PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed 
 % =============================================================================
 \section{What we trained, and how}
 % -----------------------------------------------------------------------------
-\begin{frame}{What we built since Aug 12 (all reproducible, all pushed)}
+\begin{frame}{Built: effort-as-action RL on Nautilus + a calibrated 134-game eval protocol}
 \small
 \begin{enumerate}\itemsep 0.45em
   \item \textbf{The full effort-as-action stack on NRP Nautilus}: the policy declares
@@ -71,7 +71,7 @@ PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed 
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{F1 --- the knob has authority (untrained, forced levels)}
+\begin{frame}{F1: energy obeys the knob --- 10.7 $<$ 12.0 $<$ 13.0 kJ (low/mid/high), base free = 15.0}
 \begin{columns}[T]
 \column{0.46\textwidth}
 \includegraphics[width=\linewidth]{figures/f1_success_vs_energy.png}
@@ -100,7 +100,7 @@ Left figure: the single-call profiler protocol (F1); table: the training-prompt 
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Training runs: the matrix so far}
+\begin{frame}{Trained: 9 runs, 4 reward families, one recipe change (lr 3e-6, no KL)}
 \begin{center}\footnotesize
 \begin{tabular}{@{}llllll@{}}
 \toprule
@@ -126,7 +126,7 @@ run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to eve
 % =============================================================================
 \section{What came out: the results}
 % -----------------------------------------------------------------------------
-\begin{frame}{Finding 1 --- training cuts energy 32\,\% without losing success}
+\begin{frame}{Finding 1: RL cuts energy 32\,\% at better success --- and $\lambda{=}0$ does it too}
 \begin{columns}[T]
 \column{0.5\textwidth}
 \includegraphics[width=\linewidth]{figures/f3_pareto.png}
@@ -146,7 +146,7 @@ run F adds ``\texttt{Energy used so far: X kJ. Your budget is 1.00 kJ.}'' to eve
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Finding 2 --- the agent does not (yet) DECIDE: the choice collapses}
+\begin{frame}{Finding 2: the choice collapses --- 133/134 episodes vary levels $\rightarrow$ 0/134}
 \begin{center}\includegraphics[width=0.86\textwidth]{figures/choice_evolution.png}\end{center}
 \vspace{-0.6em}\scriptsize
 Episodes using more than one effort level: base \textbf{133/134} (scatter + 16\,\% broken format)
@@ -157,7 +157,7 @@ decomposition shows 100\,\% of the energy drop is \textbf{within-mid shortening}
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{The traces themselves --- same task, before vs.\ after (verbatim)}
+\begin{frame}{Traces: the rambling dies (483 $\rightarrow$ 314 chars/turn); the decision never appears}
 \begin{columns}[T]
 \column{0.5\textwidth}
 {\small \textbf{Base (untrained)} --- ``put a clean spatula in a drawer'', turn 1:}\\[0.2em]
@@ -190,7 +190,7 @@ strategy) $\rightarrow$ A2 emits \textbf{mid 73/73 times}. Training deleted the 
 % =============================================================================
 \section{The challenges --- and what is running against each one}
 % -----------------------------------------------------------------------------
-\begin{frame}{Why it collapses --- diagnosis with evidence, and the fix per cause}
+\begin{frame}{Five causes of the collapse --- each one has an experiment running against it}
 \begin{center}\footnotesize
 \begin{tabular}{@{}p{5.6cm}p{5.3cm}l@{}}
 \toprule
@@ -211,7 +211,7 @@ $-16\,\%$ energy --- always-mid \textbf{leaves energy on the table} (mid/high st
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Running right now (all unattended, monitored, resumable)}
+\begin{frame}{Running now: 4 trainings + decision test + budget profiling, all monitored}
 \begin{center}\small
 \begin{tabular}{@{}llp{6.2cm}@{}}
 \toprule
@@ -233,7 +233,7 @@ finish in 15--22. ``Learning to give up'' is the largest measured energy reservo
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Measurement lessons that go straight into the paper}
+\begin{frame}{Measurement: four ``identical'' 3090s differ 60\,\% --- calibrate boards, count tokens}
 \small
 \begin{enumerate}\itemsep 0.5em
   \item \textbf{``Same GPU model'' is not enough}: four RTX 3090s (same 350-W limit) measured
@@ -250,7 +250,7 @@ finish in 15--22. ``Learning to give up'' is the largest measured energy reservo
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{What we can claim today / what we are one result away from}
+\begin{frame}{Five claims stand on 134-game evidence; three verdicts land this week}
 \footnotesize
 \textbf{Claimable now, with 134-game evidence:}
 \begin{itemize}\itemsep 0.15em
@@ -274,7 +274,7 @@ finish in 15--22. ``Learning to give up'' is the largest measured energy reservo
 \end{frame}
 
 % -----------------------------------------------------------------------------
-\begin{frame}{Asks and decisions}
+\begin{frame}{Asks: PES GM go/no-go (Oct), one reliable 48-GB GPU, your read on the 3 interventions}
 \begin{enumerate}\itemsep 0.7em
   \item \textbf{PES GM 2027 (deadline Nov 10)}: with today's material the paper is
         ``knob authority + verified measurement methodology + RL saves 32\,\% + diagnosed
