@@ -110,4 +110,55 @@ normal RL training (no energy term) & 3.7\,\% & 10.3 \\
 (each run's best checkpoint tells the same story). Details, controls, and traces: appendix.}
 \end{frame}
 
+
+% -----------------------------------------------------------------------------
+\begin{frame}{The second knob: shrinking the context does not pay}
+\small
+Wenqi's Aug-12 ask: can the \textbf{context window} be an energy knob too? We measured it
+(untrained model, 134 games per row, same protocol):
+\vspace{0.4em}
+\begin{center}\normalsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+history kept & success & kJ/episode \\
+\midrule
+full history & \textbf{3.0\,\%} & \textbf{4.2} \\
+last 3 turns & 1.5\,\% & 5.1 \\
+last 1 turn & 0.7\,\% & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.4em}
+\textbf{Verdict}: cutting memory hurts success \emph{and} saves no energy --- the agent forgets,
+wanders, and generates \emph{more} per turn (26 $\rightarrow$ 35 tokens). At this scale, context
+stays an observation, not an action.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{The traces: what training actually changed}
+\begin{columns}[T]
+\column{0.5\textwidth}
+{\small \textbf{Before} --- same task, turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+In the current situation, I have a spatula but no clean spatula. To find a clean
+spatula, I would first check if there is a dirty spatula on any of the countertops,
+sinks, stoves, etc., then wash it with water from the sinkbasin before placing it
+back into the drawer. However, since I don't know [\ldots]\\
+\textcolor{acc}{\ab{think}} I am looking for a clean spatula [\ldots]}
+\column{0.5\textwidth}
+{\small \textbf{After 60 steps} --- same task, turn 1:}\\[0.2em]
+{\scriptsize\ttfamily
+\textcolor{mid}{\ab{effort}mid\ab{/effort}}\\
+\textcolor{acc}{\ab{think}} The spatula must be somewhere in the kitchen [\ldots]
+The most likely places would be the countertops, the drawers, or the cabinets.
+\textcolor{acc}{\ab{/think}}\\
+\textcolor{good}{\ab{action}go to countertop 1\ab{/action}}}
+\end{columns}
+\vspace{0.6em}\small
+The rambling preamble is gone; the think is tight; the action is valid. Median
+\textbf{483 $\rightarrow$ 314 chars/turn} ($-35\,\%$) --- but the effort tag reads
+\textbf{mid, every single turn}: the waste died \emph{inside} the level, the choice never appeared.
+\end{frame}
+
 \end{document}
