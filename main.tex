@@ -15,6 +15,8 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
 
 \definecolor{good}{HTML}{1baf7a}
 \definecolor{bad}{HTML}{e34948}
@@ -68,6 +70,58 @@ PES GM 2027 (Nov 10) & Yuanyuan & timeline slide at the end --- decision needed 
   \item Two bug classes found in \emph{our own} earlier pipeline and fixed: energy attribution
         was $\sim$uniform across trajectories; the energy meter could fail silently.
 \end{enumerate}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{The mechanism: one turn --- three separate channels out of the same text}
+\begin{center}
+\begin{tikzpicture}[
+  font=\scriptsize,
+  box/.style={draw, rounded corners=2pt, align=left, inner sep=5pt},
+  chan/.style={draw, rounded corners=2pt, align=left, inner sep=4pt, text width=4.1cm},
+  arr/.style={-{Stealth[length=2.2mm]}, thick},
+  node distance=4mm and 7mm]
+
+\node[box, fill=black!4] (obs) {\textbf{ALFWorld observation}\\
+  ``You are in the kitchen. You see\\ a countertop, a drawer, \ldots''\\
+  \textcolor{acc}{+ run F only: ``Energy used so far:}\\
+  \textcolor{acc}{0.42 kJ. Your budget is 1.00 kJ.''}};
+
+\node[box, right=9mm of obs, fill=black!4] (gen) {\textbf{Qwen2.5-1.5B (LoRA-64) generates}\\[1pt]
+  \texttt{\textcolor{mid}{\ab{effort}mid\ab{/effort}}}\\
+  \texttt{\textcolor{acc}{\ab{think}}\,where would a spatula be\ldots\,\textcolor{acc}{\ab{/think}}}\\
+  \texttt{\textcolor{good}{\ab{action}}\,go to countertop 1\,\textcolor{good}{\ab{/action}}}};
+
+\node[chan, below=7mm of obs.south west, anchor=north west] (ceff)
+  {\textbf{1 --- effort tag}\\ parsed out; \emph{the env never sees it}\\
+   $\rightarrow$ enters only the \textbf{reward}\\ \phantom{$\rightarrow$} (level-priced, run D) and the logs};
+\node[chan, right=5mm of ceff] (cact)
+  {\textbf{2 --- action string} $\rightarrow$ \texttt{env.step()}\\
+   not an admissible command $\Rightarrow$\\ \textbf{invalid}: no-op $+$ penalty 0.1\\
+   (\emph{this} is the ``\% invalid'' metric)};
+\node[chan, right=5mm of cact] (cnrg)
+  {\textbf{3 --- generated tokens}\\ $\rightarrow$ NVML hardware energy\\
+   \phantom{$\rightarrow$} counter, split by tokens\\ $\Rightarrow$ episode energy $E$ (kJ)};
+
+\node[box, below=10mm of ceff.south west, anchor=north west, fill=black!4, text width=13.2cm] (rew)
+  {\textbf{episode end:} $R=\mathbf{1}[\text{success}]\cdot 10 \;\circ\;
+    \big(\lambda E/E_{\text{ref}} \;/\; \text{level price} \;/\; \text{budget}\big)$
+   {\footnotesize (one energy term per run A2/C2/D/F)}
+   \;$\longrightarrow$\; \textbf{GiGPO}: 8 rollouts of the same game, group-relative advantage
+   \;$\longrightarrow$\; LoRA update};
+
+\draw[arr] (obs) -- (gen);
+\draw[arr] (gen.south west) ++(2mm,0) to[out=-90,in=90] (ceff.north);
+\draw[arr] (gen.south) to[out=-90,in=90] (cact.north);
+\draw[arr] (gen.south east) ++(-2mm,0) to[out=-90,in=90] (cnrg.north);
+\draw[arr] (ceff.south) -- (ceff.south |- rew.north);
+\draw[arr] (cact.south) -- (cact.south |- rew.north);
+\draw[arr] (cnrg.south) -- (cnrg.south |- rew.north);
+\end{tikzpicture}
+\end{center}
+\vspace{-0.2em}\scriptsize
+Independent channels: the \textbf{level} is judged by the reward, the \textbf{action} by the
+environment, the \textbf{energy} by hardware --- ``\% invalid'' is channel 2 only, unrelated to the effort tag.
 \end{frame}
 
 % -----------------------------------------------------------------------------
