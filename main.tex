@@ -161,29 +161,33 @@ normal RL training (no energy term) & 3.7\,\% & 10.3 \\
 
 
 % -----------------------------------------------------------------------------
-\begin{frame}{PES GM 2027: what would we actually submit?}
+\begin{frame}{PES GM 2027: one contribution, three framings, one sequence}
 \footnotesize
-\textbf{Working title} (grid-facing framing of this work):\\
-\emph{``LLM Agents as Flexible Load: Measuring and Training the Energy Responsiveness
-of AI Agent Workloads''}
-\vspace{0.4em}
+\textbf{Core technical contribution} (single): a \textbf{measured flexible-load model for agentic
+LLM inference at the policy layer} --- $L(\text{effort}, \text{context}, \text{task}) \rightarrow$
+(mean W, J/task, duration, success) --- the analogue of the TCL / EV-charger load models PES
+already has, for a load class that has none. RL, ALFWorld and token counts are support, not claims.
+\vspace{0.35em}
 
-\textbf{Technical contribution} (all with 134-game evidence today, D/F verdicts before the deadline):
-\begin{enumerate}\itemsep 0.25em
-  \item A \textbf{verifiable GPU-energy measurement protocol} for LLM agents: hardware counters
-        + per-board calibration (``identical'' GPUs differ up to 60\,\%) --- tokens as the
-        hardware-free energy currency of a workload.
-  \item \textbf{RL training cuts agent energy 31\,\% at equal-or-better success} --- AI agents are
-        a \emph{tunable} load, not a fixed one.
-  \item \textbf{Energy signals in the loop}: a reward-side price cancels in group-relative RL;
-        an \emph{observed} budget / level price is the demand-response hook --- run F's budget
-        line is literally a grid signal in the observation.
+\textbf{Three framings to choose between} (not a fixed title yet):
+\begin{enumerate}\itemsep 0.15em
+  \item \textbf{Load model + flexibility envelope} of the agentic load \hfill $\leftarrow$ recommended
+  \item Verified \textbf{measurement methodology} for agentic GPU loads (calibration, provenance)
+  \item \textbf{Grid-signal-responsive operation}: rules controller (price/carbon $\uparrow$ $\Rightarrow$
+        effort $\downarrow$), success retained
 \end{enumerate}
-\vspace{0.4em}
-\textbf{Fit}: data centers as flexible load; ML for power systems.
-\quad\textbf{Timeline}: site opens Oct 6, deadline \textbf{Nov 10} $\Rightarrow$ decide early Oct.\\
-\textbf{The question for you}: is this the right framing for PES, or does PES get only the
-measurement + price-signal piece?
+\vspace{0.35em}
+
+\textbf{Sequence, not parallel}: PES first (\textbf{Nov 10} + arXiv the same week; data mostly in
+hand, no RL dependency) $\rightarrow$ ML paper once RL converges (ICML Jan / ICLR-workshop Feb).
+Disjoint claims: PES = load shape, envelope, grid response; ML = learned policy vs fixed-policy
+Pareto + tokens-vs-joules ablation.
+\vspace{0.35em}
+
+\textbf{Sept--Oct}: success-per-level on one GPU (mostly done), rules-controller demo with a
+synthetic price trace ($\sim$2 weeks), write. \textbf{Known caveats to report, not hide}: context
+truncation has \emph{negative} net authority at task level (F4); effort authority is
+protocol-dependent; J-per-success at 1.5B carries wide intervals.
 \end{frame}
 
 \end{document}
