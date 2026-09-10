@@ -150,7 +150,8 @@ normal RL training (no energy term) & 3.7\,\% & 10.3 \\
   \item Most of the saving comes from \textbf{training itself} (brevity + valid actions);
         the energy term didn't add savings --- because the agent stopped choosing.
   \item And the collapsed choice \textbf{leaves energy on the table}: forcing ``low'' on the
-        trained agent keeps its 6.7\,\% success at \textbf{8.8 kJ} ($-16\,\%$).
+        trained agent keeps success within noise (6.0 vs 6.7\,\%) at \textbf{9.6 kJ} ($-7\,\%$),
+        134 games.
   \item \textbf{Next (already training)}: make the choice itself matter --- put a price on the
         declared level, and show the agent its own consumption against a budget.
 \end{itemize}
