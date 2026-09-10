@@ -149,9 +149,11 @@ normal RL training (no energy term) & 3.7\,\% & 10.3 \\
 \begin{itemize}\itemsep 0.4em
   \item Most of the saving comes from \textbf{training itself} (brevity + valid actions);
         the energy term didn't add savings --- because the agent stopped choosing.
-  \item And the collapsed choice \textbf{leaves energy on the table}: forcing ``low'' on the
-        trained agent keeps success within noise (6.0 vs 6.7\,\%) at \textbf{9.6 kJ} ($-7\,\%$),
-        134 games.
+  \item The decision test (134 games/row) shows the collapse runs \emph{deeper}: forcing low
+        or mid on the trained agent gives \textbf{identical success and energy}
+        (6.0\,\%, 9.6 vs 9.2 kJ) --- where the same forcing spread the \emph{untrained} base
+        10.7 $\rightarrow$ 13.0 kJ. Training didn't just fix the choice at mid;
+        \textbf{it erased the knob's authority}.
   \item \textbf{Next (already training)}: make the choice itself matter --- put a price on the
         declared level, and show the agent its own consumption against a budget.
 \end{itemize}
